@@ -303,3 +303,82 @@ Format as clean bullet points without markdown headers or emojis. Keep it author
             "4. Audit Readiness: Maintain audited financial statements and verifiable expenditure receipts to substantiate deductions."
         )
 
+
+def format_tax_summary_markdown(calc_result: Dict[str, Any], language: str = "English") -> str:
+    """
+    Renders a comprehensive, high-fidelity markdown breakdown of the tax computation,
+    including income, applicable slab, base tax, 4C super tax, surcharge, take-home,
+    and statutory citations.
+    """
+    fmt = calc_result.get("formatted", {})
+    cat = calc_result.get("category", "Taxpayer")
+    tax_year = calc_result.get("tax_year", "2024-2025")
+    super_tax = calc_result.get("super_tax_4c", 0.0)
+    surcharge = calc_result.get("surcharge", 0.0)
+    statutory_ref = calc_result.get("statutory_reference", "First Schedule, Income Tax Ordinance 2001")
+    slab_desc = calc_result.get("slab_description", "Applicable statutory slab")
+
+    if language == "Roman Urdu":
+        return f"""### 📊 Tax Calculation Summary ({tax_year})
+
+**Taxpayer Category:** {cat}  
+**Qanooni Schedule:** {statutory_ref}
+
+| Item / Mad | Rakam (PKR) |
+| :--- | :--- |
+| **Kul Salana Aamadni (Gross Annual Income)** | **{fmt.get('annual_income', 'PKR 0')}** |
+| **Mahana Aamadni (Monthly Equivalent)** | {fmt.get('monthly_income', 'PKR 0')} |
+| **Laagu Shuda Tax Slab (Applicable Slab)** | {slab_desc} |
+| **Bunyadi Income Tax (Base Tax)** | {fmt.get('base_tax', 'PKR 0')} |
+| **Section 4C Super Tax** | {fmt.get('super_tax_4c', 'PKR 0')} ({calc_result.get('super_tax_rate_pct', 0)}%) |
+| **10% Surcharge (High Income)** | {fmt.get('surcharge', 'PKR 0')} |
+| **Kul Salana Tax (Total Annual Tax)** | **{fmt.get('total_annual_tax', 'PKR 0')}** |
+| **Mahana Tax Katoti (Monthly Withholding)** | **{fmt.get('total_monthly_tax', 'PKR 0')}** |
+| **Effective Tax Rate** | **{fmt.get('effective_tax_rate', '0.00%')}** |
+| **Saaf Mahana Aamadni (Net Monthly Take-Home)** | **{fmt.get('net_monthly_income', 'PKR 0')}** |
+
+> 🏛️ **Qanooni Hawala:** Yeh calculation Pakistan Income Tax Ordinance, 2001 (First Schedule, Division I/II) aur Finance Act 2024 ke mutabiq deterministic compute ki gayi hai.
+"""
+    elif language == "Urdu (اردو)":
+        return f"""### 📊 انکم ٹیکس کا مکمل حساب ({tax_year})
+
+**ٹیکس گزار کی قسم:** {cat}  
+**قانونی شیڈول:** {statutory_ref}
+
+| تفصیل | رقم (پاکستانی روپے) |
+| :--- | :--- |
+| **مجموعی سالانہ آمدنی (Gross Annual Income)** | **{fmt.get('annual_income', 'PKR 0')}** |
+| **ماہانہ آمدنی (Monthly Equivalent)** | {fmt.get('monthly_income', 'PKR 0')} |
+| **لاگو شدہ سلیب (Applicable Slab)** | {slab_desc} |
+| **بنیادی انکم ٹیکس (Base Tax)** | {fmt.get('base_tax', 'PKR 0')} |
+| **سیکشن 4C سپر ٹیکس (Super Tax)** | {fmt.get('super_tax_4c', 'PKR 0')} ({calc_result.get('super_tax_rate_pct', 0)}%) |
+| **10% سرچارج (High Income Surcharge)** | {fmt.get('surcharge', 'PKR 0')} |
+| **کل سالانہ ٹیکس (Total Annual Tax)** | **{fmt.get('total_annual_tax', 'PKR 0')}** |
+| **ماہانہ کٹوتی (Monthly Withholding Tax)** | **{fmt.get('total_monthly_tax', 'PKR 0')}** |
+| **ٹیکس کی شرح (Effective Tax Rate)** | **{fmt.get('effective_tax_rate', '0.00%')}** |
+| **خالص ماہانہ آمدنی (Net Monthly Take-Home)** | **{fmt.get('net_monthly_income', 'PKR 0')}** |
+
+> 🏛️ **قانونی حوالہ:** یہ حساب انکم ٹیکس آرڈیننس 2001 (پہلا شیڈول) اور فنانس ایکٹ 2024 کے تحت قانونی طور پر تیار کیا گیا ہے۔
+"""
+    else:
+        return f"""### 📊 Statutory Tax Calculation Summary ({tax_year})
+
+**Taxpayer Category:** {cat}  
+**Governing Schedule:** {statutory_ref}
+
+| Parameter | Computation (PKR) |
+| :--- | :--- |
+| **Gross Annual Income** | **{fmt.get('annual_income', 'PKR 0')}** |
+| **Monthly Equivalent** | {fmt.get('monthly_income', 'PKR 0')} |
+| **Applicable Statutory Slab** | {slab_desc} |
+| **Base Income Tax** | {fmt.get('base_tax', 'PKR 0')} |
+| **Section 4C Super Tax** | {fmt.get('super_tax_4c', 'PKR 0')} ({calc_result.get('super_tax_rate_pct', 0)}%) |
+| **High Income Surcharge (10%)** | {fmt.get('surcharge', 'PKR 0')} |
+| **Total Annual Tax Liability** | **{fmt.get('total_annual_tax', 'PKR 0')}** |
+| **Monthly Tax Withholding** | **{fmt.get('total_monthly_tax', 'PKR 0')}** |
+| **Effective Tax Rate** | **{fmt.get('effective_tax_rate', '0.00%')}** |
+| **Net Monthly Take-Home** | **{fmt.get('net_monthly_income', 'PKR 0')}** |
+
+> 🏛️ **Statutory Citation:** Computed strictly under Division I/II, Part I/II of the First Schedule of the Pakistan Income Tax Ordinance, 2001 and the Finance Act 2024.
+"""
+

@@ -373,6 +373,7 @@ async function executeAssistantQuery(formData) {
 
   try {
     let accumulatedText = "";
+    let pendingCitations = [];
     let streamSuccess = false;
 
     try {
@@ -446,26 +447,9 @@ async function executeAssistantQuery(formData) {
                     }
                   }
 
-                  // Verified Citations Box
+                  // Store verified citations for rendering at the bottom after answer text is streamed
                   if (parsed.citations && parsed.citations.length > 0) {
-                    sourcesBoxSlot.style.display = "block";
-                    sourcesBoxSlot.className = "verified-sources-box";
-                    let citHtml = `
-                      <div class="vs-header">
-                        <i data-lucide="book-open"></i>
-                        <span>Verified Statutory Sources (${parsed.citations.length})</span>
-                      </div>
-                      <div class="source-chips-row">
-                    `;
-                    parsed.citations.forEach((cit) => {
-                      citHtml += `
-                        <span class="source-page-link" title="Statutory Reference: ${cit.section} (Page ${cit.page})">
-                          🏛️ ${cit.filename} — ${cit.section} (Page ${cit.page})
-                        </span>
-                      `;
-                    });
-                    citHtml += `</div>`;
-                    sourcesBoxSlot.innerHTML = citHtml;
+                    pendingCitations = parsed.citations;
                   }
 
                   initLucide();
@@ -479,8 +463,30 @@ async function executeAssistantQuery(formData) {
                     scrollToBottom();
                   }
                 } else if (currentEvent === "done") {
+                  // Render verified statutory sources at the very bottom after answer text
+                  if (pendingCitations && pendingCitations.length > 0) {
+                    sourcesBoxSlot.style.display = "block";
+                    sourcesBoxSlot.className = "verified-sources-box";
+                    let citHtml = `
+                      <div class="vs-header">
+                        <i data-lucide="book-open"></i>
+                        <span>Verified Statutory Sources (${pendingCitations.length})</span>
+                      </div>
+                      <div class="source-chips-row">
+                    `;
+                    pendingCitations.forEach((cit) => {
+                      citHtml += `
+                        <span class="source-page-link" title="Statutory Reference: ${cit.section} (Page ${cit.page})">
+                          🏛️ ${cit.filename} — ${cit.section} (Page ${cit.page})
+                        </span>
+                      `;
+                    });
+                    citHtml += `</div>`;
+                    sourcesBoxSlot.innerHTML = citHtml;
+                  }
                   actionControls.style.display = "flex";
                   initLucide();
+                  scrollToBottom();
                 }
               } catch (e) {
                 console.warn("SSE parse warning", e);

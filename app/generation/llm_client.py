@@ -4,7 +4,7 @@ from typing import List, Dict, Any, Optional
 from google import genai
 from google.genai import types
 
-from app.config import GOOGLE_API_KEY, GEMINI_MODEL
+from app.config import GOOGLE_API_KEY, GEMINI_API_KEYS, GEMINI_MODEL
 from app.generation.prompt_templates import (
     TRANSLATION_SYSTEM_PROMPT,
     NOTICE_EXTRACTION_PROMPT,
@@ -12,15 +12,17 @@ from app.generation.prompt_templates import (
     build_legal_qa_prompt,
 )
 
-_genai_client = None
+_genai_clients: Dict[str, genai.Client] = {}
 
 
-def get_genai_client() -> genai.Client:
-    """Returns an authenticated Google GenAI client."""
-    global _genai_client
-    if _genai_client is None:
-        _genai_client = genai.Client(api_key=GOOGLE_API_KEY)
-    return _genai_client
+def get_genai_client(key_idx: int = 0) -> genai.Client:
+    """Returns an authenticated Google GenAI client, rotating if needed."""
+    keys = GEMINI_API_KEYS if GEMINI_API_KEYS else ([GOOGLE_API_KEY] if GOOGLE_API_KEY else [""])
+    idx = key_idx % max(1, len(keys))
+    chosen_key = keys[idx]
+    if chosen_key not in _genai_clients:
+        _genai_clients[chosen_key] = genai.Client(api_key=chosen_key)
+    return _genai_clients[chosen_key]
 
 
 def analyze_notice_image(image_bytes: bytes) -> Dict[str, str]:
@@ -126,29 +128,27 @@ def generate_legal_answer(
     system_instruction = LEGAL_QA_SYSTEM_PROMPT.format(target_language=target_language)
     prompt_text = build_legal_qa_prompt(query, target_language, full_context)
 
-    models_to_try = [GEMINI_MODEL, "gemini-flash-latest", "gemini-2.5-pro", "gemini-3-flash-preview"]
-    unique_models = []
-    for m in models_to_try:
-        if m and m not in unique_models:
-            unique_models.append(m)
+    num_keys = max(1, len(GEMINI_API_KEYS))
+    models_to_try = [GEMINI_MODEL, "gemini-3.5-flash", "gemini-2.5-flash"]
+    unique_models = [m for i, m in enumerate(models_to_try) if m and m not in models_to_try[:i]]
 
     last_err = None
-    import time
-
-    for model_name in unique_models:
-        try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=prompt_text,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    temperature=0.2,
-                ),
-            )
-            return response.text.strip()
-        except Exception as e:
-            last_err = e
-            time.sleep(0.5)
+    for k_idx in range(num_keys):
+        client = get_genai_client(k_idx)
+        for model_name in unique_models:
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt_text,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        temperature=0.2,
+                    ),
+                )
+                return response.text.strip()
+            except Exception as e:
+                last_err = e
+                continue
 
     return f"Error communicating with Gemini model: {str(last_err)}"
 
@@ -161,9 +161,8 @@ def generate_legal_answer_stream(
 ):
     """
     Streams the legal answer token-by-token using Gemini 3.5 Flash for ultra-low latency.
+    Supports key rotation across available keys.
     """
-    client = get_genai_client()
-
     context_blocks = []
     for i, c in enumerate(context_chunks, start=1):
         filename = c.get("filename", "Unknown Document")
@@ -186,18 +185,27 @@ def generate_legal_answer_stream(
     system_instruction = LEGAL_QA_SYSTEM_PROMPT.format(target_language=target_language)
     prompt_text = build_legal_qa_prompt(query, target_language, full_context)
 
-    try:
-        stream = client.models.generate_content_stream(
-            model=GEMINI_MODEL,
-            contents=prompt_text,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.2,
-            ),
-        )
-        for chunk in stream:
-            if chunk.text:
-                yield chunk.text
-    except Exception as e:
-        yield f"Error in streaming generation: {str(e)}"
+    num_keys = max(1, len(GEMINI_API_KEYS))
+    stream_err = None
+
+    for k_idx in range(num_keys):
+        try:
+            client = get_genai_client(k_idx)
+            stream = client.models.generate_content_stream(
+                model=GEMINI_MODEL,
+                contents=prompt_text,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=0.2,
+                ),
+            )
+            for chunk in stream:
+                if chunk.text:
+                    yield chunk.text
+            return
+        except Exception as e:
+            stream_err = e
+            continue
+
+    yield f"Error in streaming generation: {str(stream_err)}"
 

@@ -9,6 +9,7 @@ from app.generation.stt_client import transcribe_audio
 from app.graph.crag_flow import run_agentic_flow, router_node, legal_retriever_node, tax_calculator_node
 from app.tools.calendar_tool import detect_compliance_deadlines
 from app.tools.official_portals import detect_official_portal_link
+from app.tools.tax_calculator import format_tax_summary_markdown
 from app.retrieval.cache import GLOBAL_QUERY_CACHE
 
 
@@ -229,17 +230,7 @@ def ask_question_stream(
 
     # If pure TAX_CALC without legal questions, emit calculation summary and finish
     if intent == "TAX_CALC" and calc_result:
-        fmt = calc_result["formatted"]
-        cat = calc_result["category"].capitalize()
-        ans = (
-            f"### Computed Tax Liability ({cat})\n\n"
-            f"- **Taxable Income:** {fmt['taxable_income']}\n"
-            f"- **Base Income Tax:** {fmt['base_tax']}\n"
-            f"- **Section 4C Super Tax:** {fmt['super_tax_4c']}\n"
-            f"- **Total Tax Liability:** **{fmt['total_tax_liability']}**\n"
-            f"- **Effective Tax Rate:** **{fmt['effective_rate']}**\n\n"
-            f"*Computed strictly under the First Schedule of the Income Tax Ordinance 2001 (Finance Act 2024).*"
-        )
+        ans = format_tax_summary_markdown(calc_result, language=language)
         yield f"event: token\ndata: {json.dumps({'text': ans})}\n\n"
         yield f"event: done\ndata: {{}}\n\n"
 
@@ -248,8 +239,18 @@ def ask_question_stream(
             GLOBAL_QUERY_CACHE.set(clean_query, {**meta_payload, "answer": ans}, language=language)
         return
 
-    # Stream legal synthesis tokens progressively from Gemini!
     full_answer_parts = []
+
+    # If DUAL question, yield the statutory tax computation summary first before streaming legal research!
+    if intent == "DUAL" and calc_result:
+        calc_header = (
+            format_tax_summary_markdown(calc_result, language=language)
+            + "\n\n---\n\n### ⚖️ Grounded Statutory Legal Research & Analysis\n\n"
+        )
+        full_answer_parts.append(calc_header)
+        yield f"event: token\ndata: {json.dumps({'text': calc_header})}\n\n"
+
+    # Stream legal synthesis tokens progressively from Gemini!
     try:
         for chunk in generate_legal_answer_stream(
             query=clean_query,

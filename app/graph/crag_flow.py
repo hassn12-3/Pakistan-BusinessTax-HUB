@@ -22,7 +22,7 @@ from app.generation.llm_client import (
 )
 from app.generation.citation_builder import build_citations
 from app.retrieval.hybrid_retriever import hybrid_retrieve
-from app.tools.tax_calculator import calculate_pakistan_tax, parse_currency_amount
+from app.tools.tax_calculator import calculate_pakistan_tax, parse_currency_amount, format_tax_summary_markdown
 
 
 class AgentState(TypedDict):
@@ -60,11 +60,16 @@ def router_node(state: AgentState) -> Dict[str, Any]:
     ]
     has_tax_cue = any(kw in query.lower() for kw in tax_keywords)
     extracted_amount = parse_currency_amount(query)
-    has_legal_cue = any(lw in query.lower() for lw in ["notice", "appeal", "contest", "remedy", "defense", "tribunal", "ex-parte", "order", "show cause", "122", "111", "221", "section", "ordinance", "law", "rule", "regulations", "secp", "fbr"])
+    legal_research_cues = [
+        "explain", "requirements", "filing", "return", "exemption", "exempt",
+        "notice", "appeal", "contest", "remedy", "defense", "tribunal", "order",
+        "show cause", "audit", "compliance", "penalty", "consequences", "due date",
+        "clause", "regulation", "section", "ordinance", "provision", "procedure", "wazahat", "batao"
+    ]
+    has_substantive_legal_q = any(cue in query.lower() for cue in legal_research_cues)
 
     # FAST-PATH 1: Queries without a financial amount and without an attached notice
     # If there is no numeric amount, no computation can be performed -> 100% LEGAL_RAG!
-    # This immediately saves 2-3 seconds of LLM classification latency on 90%+ of queries.
     if not extracted_amount and not notice_summary:
         search_query = translate_query_if_needed(query, language=language)
         return {
@@ -73,32 +78,12 @@ def router_node(state: AgentState) -> Dict[str, Any]:
             "search_query": search_query,
         }
 
-    # FAST-PATH 2: Clear tax calculation query with parsed amount and no legal dispute
-    if extracted_amount and (has_tax_cue or not notice_summary) and not (has_legal_cue and any(w in query.lower() for w in ["appeal", "notice", "remedy", "tribunal", "show cause"])):
+    # FAST-PATH 2: Dual query when user asks for tax calculation AND legal explanations/rules
+    if extracted_amount and has_substantive_legal_q and not notice_summary:
         q_lower = query.lower()
         is_monthly = any(m in q_lower for m in ["month", "pm", "per month", "mahina"])
         is_company = any(c in q_lower for c in ["company", "corporate", "pvt", "limited", "ltd"])
         is_biz = is_company or any(b in q_lower for b in ["business", "aop", "firm", "proprietor", "non-salaried"])
-        
-        category = "company" if is_company else ("business" if is_biz else "salaried")
-
-        return {
-            "intent": "TAX_CALC",
-            "tax_params": {
-                "income": extracted_amount,
-                "is_monthly": is_monthly,
-                "category": category,
-                "tax_year": "2024-2025",
-            },
-            "search_query": "Income Tax Ordinance Pakistan First Schedule Slabs",
-        }
-
-    # FAST-PATH 3: Dual query with parsed amount AND explicit appeal/notice legal contest
-    if extracted_amount and has_legal_cue and not notice_summary:
-        q_lower = query.lower()
-        is_monthly = any(m in q_lower for m in ["month", "per month"])
-        is_company = any(c in q_lower for c in ["company", "corporate", "pvt", "limited"])
-        is_biz = is_company or any(b in q_lower for b in ["business", "aop"])
         category = "company" if is_company else ("business" if is_biz else "salaried")
         search_query = translate_query_if_needed(query, language=language)
 
@@ -111,6 +96,25 @@ def router_node(state: AgentState) -> Dict[str, Any]:
                 "tax_year": "2024-2025",
             },
             "search_query": search_query,
+        }
+
+    # FAST-PATH 3: Clear tax calculation query with parsed amount and no legal questions
+    if extracted_amount and (has_tax_cue or not notice_summary):
+        q_lower = query.lower()
+        is_monthly = any(m in q_lower for m in ["month", "pm", "per month", "mahina"])
+        is_company = any(c in q_lower for c in ["company", "corporate", "pvt", "limited", "ltd"])
+        is_biz = is_company or any(b in q_lower for b in ["business", "aop", "firm", "proprietor", "non-salaried"])
+        category = "company" if is_company else ("business" if is_biz else "salaried")
+
+        return {
+            "intent": "TAX_CALC",
+            "tax_params": {
+                "income": extracted_amount,
+                "is_monthly": is_monthly,
+                "category": category,
+                "tax_year": "2024-2025",
+            },
+            "search_query": "Income Tax Ordinance Pakistan First Schedule Slabs",
         }
 
     # Fallback to LLM classifier only for complex multimodal notice documents
@@ -237,67 +241,7 @@ def synthesizer_node(state: AgentState) -> Dict[str, Any]:
 
     # If only tax calculation without legal questions
     if intent == "TAX_CALC" and calc_result:
-        fmt = calc_result["formatted"]
-        cat = calc_result["category"]
-        super_note = ""
-        if calc_result["super_tax_4c"] > 0:
-            super_note = (
-                f"\n- **Super Tax (Section 4C)**: {fmt['super_tax_4c']} "
-                f"({calc_result['super_tax_rate_pct']}% applied under Section 4C for high earners exceeding Rs. 150M)"
-            )
-
-        surcharge_note = ""
-        if calc_result["surcharge"] > 0:
-            surcharge_note = f"\n- **High Income Surcharge (10%)**: {fmt['surcharge']} (Finance Act 2024)"
-
-        if language == "Roman Urdu":
-            ans = f"""### 📊 Tax Calculation Ka Khulasa ({calc_result['tax_year']})
-
-Aap ki di gayi aamdani par **Income Tax Ordinance, 2001** aur **Finance Act 2024** ke tehat tax ka hisaab darj zail hai:
-
-- **Category**: {cat}
-- **Salana Aamdani (Gross)**: {fmt['annual_income']} (Mahnana: {fmt['monthly_income']})
-- **Laagu Slab**: {calc_result['slab_description']}
-- **Bunyadi Tax (Base Tax)**: {fmt['base_tax']}{surcharge_note}{super_note}
-- **Kul Salana Tax Wajib-ul-Ada**: **{fmt['total_annual_tax']}**
-- **Mahnana Tax Deduction**: **{fmt['total_monthly_tax']}**
-- **Effective Tax Rate**: **{fmt['effective_tax_rate']}**
-- **Khaalis Mahnana Aamdani (Net Take-Home)**: **{fmt['net_monthly_income']}**
-
-> **Qanooni Hawala**: {calc_result['statutory_reference']} aur Section 4C (Super Tax on High Earning Persons).
-"""
-        elif language == "Urdu (اردو)":
-            ans = f"""### 📊 انکم ٹیکس کا حساب کتاب ({calc_result['tax_year']})
-
-انکم ٹیکس آرڈیننس 2001 اور فنانس ایکٹ 2024 کے تحت آپ کا ٹیکس درج ذیل ہے:
-
-- **شعبہ**: {cat}
-- **کل سالانہ آمدنی**: {fmt['annual_income']} (ماہانہ: {fmt['monthly_income']})
-- **لاگو سلیب**: {calc_result['slab_description']}
-- **بنیادی ٹیکس**: {fmt['base_tax']}{surcharge_note}{super_note}
-- **کل سالانہ واجب الادا ٹیکس**: **{fmt['total_annual_tax']}**
-- **ماہانہ کٹوتی**: **{fmt['total_monthly_tax']}**
-- **مؤثر ٹیکس کی شرح (Effective Rate)**: **{fmt['effective_tax_rate']}**
-- **خالص ماہانہ آمدنی (Net Take-Home)**: **{fmt['net_monthly_income']}**
-
-> **قانونی حوالہ**: {calc_result['statutory_reference']} اور سیکشن 4C (سپر ٹیکس)۔
-"""
-        else:
-            ans = f"""### 📊 Tax Computation Summary ({calc_result['tax_year']})
-
-Deterministic statutory calculation under the **Income Tax Ordinance, 2001** & **Finance Act 2024**:
-
-- **Taxpayer Category**: {cat}
-- **Gross Annual Income**: {fmt['annual_income']} (Monthly: {fmt['monthly_income']})
-- **Applicable Slab**: {calc_result['slab_description']}
-- **Base Income Tax**: {fmt['base_tax']}{surcharge_note}{super_note}
-- **Total Annual Tax Payable**: **{fmt['total_annual_tax']}**
-- **Monthly Tax Withholding**: **{fmt['total_monthly_tax']}**
-- **Effective Tax Rate**: **{fmt['effective_tax_rate']}**
-- **Net Monthly Take-Home**: **{fmt['net_monthly_income']}**
-
-> **Statutory Citation**: {calc_result['statutory_reference']} and Section 4C (Super Tax on high earning individuals/AOPs).
-"""
+        ans = format_tax_summary_markdown(calc_result, language=language)
         return {"final_answer": ans}
 
     # If pure legal RAG or Dual query
@@ -309,24 +253,9 @@ Deterministic statutory calculation under the **Income Tax Ordinance, 2001** & *
     )
 
     if intent == "DUAL" and calc_result:
-        fmt = calc_result["formatted"]
-        cat = calc_result["category"]
-        calc_header = (
-            f"### 📊 Statutory Tax Computation ({calc_result['tax_year']})\n\n"
-            f"- **Category**: {cat} | **Gross Income**: {fmt['annual_income']}\n"
-            f"- **Base Tax**: {fmt['base_tax']}\n"
-        )
-        if calc_result["super_tax_4c"] > 0:
-            calc_header += f"- **Super Tax (Section 4C)**: {fmt['super_tax_4c']} ({calc_result['super_tax_rate_pct']}%)\n"
-        if calc_result["surcharge"] > 0:
-            calc_header += f"- **10% Surcharge**: {fmt['surcharge']}\n"
-
-        calc_header += (
-            f"- **Total Tax Payable**: **{fmt['total_annual_tax']}** (Monthly: {fmt['total_monthly_tax']})\n"
-            f"- **Effective Tax Rate**: **{fmt['effective_tax_rate']}**\n\n"
-            f"---\n\n### ⚖️ Legal Analysis & Statutory Provisions\n\n"
-        )
-        final_answer = calc_header + legal_answer
+        calc_header = format_tax_summary_markdown(calc_result, language=language)
+        separator = "\n\n---\n\n### ⚖️ Grounded Statutory Legal Research & Analysis\n\n"
+        final_answer = calc_header + separator + legal_answer
     else:
         final_answer = legal_answer
 

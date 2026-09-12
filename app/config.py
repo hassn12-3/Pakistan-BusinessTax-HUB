@@ -12,8 +12,10 @@ if env_path.exists():
 else:
     load_dotenv()
 
-# API Keys: Unify into a single key to avoid SDK duplication notice
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY", "")
+# API Keys: Support comma-separated list of keys for quota pooling
+raw_keys = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY", "")
+GEMINI_API_KEYS = [k.strip() for k in raw_keys.split(",") if k.strip()]
+GEMINI_API_KEY = GEMINI_API_KEYS[0] if GEMINI_API_KEYS else ""
 GOOGLE_API_KEY = GEMINI_API_KEY
 
 # Set only GEMINI_API_KEY in environment to prevent "Both keys are set" notice
