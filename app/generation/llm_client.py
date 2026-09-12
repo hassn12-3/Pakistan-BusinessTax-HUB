@@ -28,69 +28,94 @@ def get_genai_client(key_idx: int = 0) -> genai.Client:
 def analyze_notice_image(image_bytes: bytes) -> Dict[str, str]:
     """
     Multimodal inspection: Reads a tax or legal notice image, skips boilerplates,
-    and extracts core facts and a targeted search query.
+    and extracts core facts and a targeted search query with multi-key rotation.
     """
-    client = get_genai_client()
-    try:
-        pil_img = Image.open(io.BytesIO(image_bytes))
-        response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=[pil_img, NOTICE_EXTRACTION_PROMPT],
-            config=types.GenerateContentConfig(
-                temperature=0.1,
-            ),
-        )
-        text = response.text.strip()
+    num_keys = max(1, len(GEMINI_API_KEYS))
+    for k_idx in range(num_keys):
+        try:
+            client = get_genai_client(k_idx)
+            pil_img = Image.open(io.BytesIO(image_bytes))
+            response = client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=[pil_img, NOTICE_EXTRACTION_PROMPT],
+                config=types.GenerateContentConfig(
+                    temperature=0.1,
+                ),
+            )
+            text = response.text.strip()
 
-        summary = ""
-        search_query = ""
+            summary = ""
+            search_query = ""
 
-        if "SEARCH_QUERY:" in text:
-            parts = text.split("SEARCH_QUERY:")
-            search_query = parts[1].strip()
-            summary = parts[0].replace("SUMMARY:", "").strip()
-        else:
-            summary = text
-            search_query = text[:150]
+            if "SEARCH_QUERY:" in text:
+                parts = text.split("SEARCH_QUERY:")
+                search_query = parts[1].strip()
+                summary = parts[0].replace("SUMMARY:", "").strip()
+            else:
+                summary = text
+                search_query = text[:150]
 
-        return {
-            "summary": summary,
-            "search_query": search_query,
-        }
-    except Exception as e:
-        print(f"Notice image analysis error: {e}")
-        return {
-            "summary": "Could not extract full notice details from image.",
-            "search_query": "tax compliance notice requirements",
-        }
+            return {
+                "summary": summary,
+                "search_query": search_query,
+            }
+        except Exception:
+            continue
+
+    return {
+        "summary": "Could not extract full notice details from image.",
+        "search_query": "tax compliance notice requirements",
+    }
 
 
 def translate_query_if_needed(query: str, language: str = "English") -> str:
     """
     Translates non-English queries (Roman Urdu or Urdu) into standard English
     before performing retrieval against English statutory documents.
+    Rotates across keys and provides fallback keyword mapping.
     """
-    if language.lower() == "english":
+    if not query or language.lower() == "english":
         return query
 
-    client = get_genai_client()
-    try:
-        response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=f"Translate this query to English for legal research: '{query}'",
-            config=types.GenerateContentConfig(
-                system_instruction=TRANSLATION_SYSTEM_PROMPT,
-                temperature=0.0,
-            ),
-        )
-        translated = response.text.strip()
-        # Clean potential quotes
-        if translated.startswith('"') and translated.endswith('"'):
-            translated = translated[1:-1]
-        return translated or query
-    except Exception as e:
-        print(f"Translation error: {e}. Using original query.")
-        return query
+    import re
+
+    # Common localized tax & legal terminology mappings for rapid fallback
+    local_glossary = [
+        (r"\b(kitna|kitni|hisaab|calculate)\s*tax\b", "tax calculation liability"),
+        (r"\bsalana\s*(aamdani|kamai|income)\b", "annual taxable income"),
+        (r"\bmahana\b", "monthly"),
+        (r"\bnotis\b", "show cause notice"),
+        (r"\bchhoot\b", "exemption tax credit"),
+        (r"\bmunafa\b", "profit business turnover"),
+        (r"\bwazahat\b", "explanation statutory rules"),
+        (r"\bappeal\b", "appeal Section 127"),
+    ]
+
+    num_keys = max(1, len(GEMINI_API_KEYS))
+    for k_idx in range(num_keys):
+        try:
+            client = get_genai_client(k_idx)
+            response = client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=f"Translate this query to English for legal research: '{query}'",
+                config=types.GenerateContentConfig(
+                    system_instruction=TRANSLATION_SYSTEM_PROMPT,
+                    temperature=0.0,
+                ),
+            )
+            translated = response.text.strip()
+            if translated.startswith('"') and translated.endswith('"'):
+                translated = translated[1:-1]
+            if translated:
+                return translated
+        except Exception:
+            continue
+
+    # Graceful fallback: Apply keyword normalization
+    fallback_q = query
+    for pat, rep in local_glossary:
+        fallback_q = re.sub(pat, rep, fallback_q, flags=re.IGNORECASE)
+    return fallback_q
 
 
 def generate_legal_answer(
