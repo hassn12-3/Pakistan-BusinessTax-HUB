@@ -388,6 +388,7 @@ async function executeAssistantQuery(formData) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder("utf-8");
         let buffer = "";
+        let currentEvent = null;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -396,8 +397,6 @@ async function executeAssistantQuery(formData) {
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
           buffer = lines.pop();
-
-          let currentEvent = null;
 
           for (const line of lines) {
             if (line.startsWith("event: ")) {
@@ -409,36 +408,33 @@ async function executeAssistantQuery(formData) {
                 const parsed = JSON.parse(rawData);
 
                 if (currentEvent === "meta") {
-                  loadingState.style.display = "none";
-                  answerText.style.display = "block";
-
                   // Prepend notice summary if available
                   if (parsed.notice_summary) {
                     const noticeDiv = document.createElement("div");
                     noticeDiv.style.cssText = "background: rgba(16, 185, 129, 0.08); border-left: 4px solid #10b981; padding: 8px 12px; border-radius: 4px; font-size: 0.84rem; color: #a7f3d0; margin-bottom: 12px;";
                     noticeDiv.innerHTML = `<b>📑 Extracted Notice Details:</b><br>${escapeHtml(parsed.notice_summary)}`;
-                    cardBody.insertBefore(noticeDiv, answerText);
+                    cardBody.insertBefore(noticeDiv, loadingState);
                   }
 
                   // Prepend tax card if calculation was performed
                   if (parsed.calculation_result) {
                     const taxCardDiv = document.createElement("div");
                     taxCardDiv.innerHTML = formatTaxCardHtml(parsed.calculation_result);
-                    cardBody.insertBefore(taxCardDiv, answerText);
+                    cardBody.insertBefore(taxCardDiv, loadingState);
                   }
 
                   // Prepend compliance calendar deadlines if detected
                   if (parsed.calendar_events && parsed.calendar_events.length > 0) {
                     const calCardDiv = document.createElement("div");
                     calCardDiv.innerHTML = formatCalendarDeadlineHtml(parsed.calendar_events);
-                    cardBody.insertBefore(calCardDiv, answerText);
+                    cardBody.insertBefore(calCardDiv, loadingState);
                   }
 
                   // Prepend official government portal link if detected
                   if (parsed.portal_info) {
                     const portalDiv = document.createElement("div");
                     portalDiv.innerHTML = formatOfficialPortalHtml(parsed.portal_info);
-                    cardBody.insertBefore(portalDiv, answerText);
+                    cardBody.insertBefore(portalDiv, loadingState);
 
                     if (parsed.portal_info.auto_open && parsed.portal_info.url) {
                       setTimeout(() => {
@@ -459,10 +455,16 @@ async function executeAssistantQuery(formData) {
                     accumulatedText += parsed.text;
                     loadingState.style.display = "none";
                     answerText.style.display = "block";
-                    answerText.innerHTML = marked.parse(accumulatedText);
+                    try {
+                      answerText.innerHTML = marked.parse(accumulatedText);
+                    } catch (mErr) {
+                      answerText.innerText = accumulatedText;
+                    }
                     scrollToBottom();
                   }
                 } else if (currentEvent === "done") {
+                  loadingState.style.display = "none";
+                  answerText.style.display = "block";
                   // Render verified statutory sources at the very bottom after answer text
                   if (pendingCitations && pendingCitations.length > 0) {
                     sourcesBoxSlot.style.display = "block";
