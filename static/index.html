@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LegalTax AI — Sovereign Legal & Corporate Tax Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Nastaliq+Urdu:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Marked.js for clean markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Left Sidebar (Matching Reference Image) -->
+    <aside class="sidebar" id="sidebar">
+      <!-- Top Brand -->
+      <div class="sidebar-brand">
+        <div class="brand-avatar">
+          <i data-lucide="scale"></i>
+        </div>
+        <div class="brand-info">
+          <h3>LEGAL AI</h3>
+          <span>AI Assistant</span>
+        </div>
+      </div>
+
+      <!-- New Conversation Button with shortcut badge -->
+      <button class="btn-new-conversation" id="newChatBtn">
+        <span class="btn-new-left">
+          <i data-lucide="plus"></i>
+          <span>New conversation</span>
+        </span>
+        <span class="kbd-shortcut">Ctrl N</span>
+      </button>
+
+      <!-- Knowledge Base Section -->
+      <div class="sidebar-group">
+        <div class="group-title">KNOWLEDGE BASE</div>
+        <div class="knowledge-card active">
+          <div class="kc-left">
+            <div class="kc-icon">
+              <i data-lucide="book-open"></i>
+            </div>
+            <div class="kc-text">
+              <div class="kc-title">Legal Knowledge</div>
+              <div class="kc-sub">FBR Ordinances, Finance Act & SECP PDFs</div>
+            </div>
+          </div>
+          <span class="online-indicator-dot"></span>
+        </div>
+      </div>
+
+      <!-- Assistant Features Section -->
+      <div class="sidebar-group">
+        <div class="group-title">ASSISTANT</div>
+        <ul class="assistant-menu">
+          <li class="menu-item">
+            <i data-lucide="shield"></i>
+            <span>Grounded responses</span>
+          </li>
+          <li class="menu-item">
+            <i data-lucide="search"></i>
+            <span>Semantic document search</span>
+          </li>
+          <li class="menu-item">
+            <i data-lucide="book"></i>
+            <span>Cited statutory sources</span>
+          </li>
+        </ul>
+
+        <!-- Language Selector Row -->
+        <div class="language-selector-row">
+          <label class="lang-label">
+            <i data-lucide="globe"></i> Language
+          </label>
+          <select id="languageSelect" class="lang-select">
+            <option value="English" selected>English</option>
+            <option value="Roman Urdu">Roman Urdu</option>
+            <option value="Urdu (اردو)">Urdu (اردو)</option>
+          </select>
+        </div>
+
+        <!-- Light Appearance Toggle Switch (Matching Reference Image) -->
+        <div class="appearance-row" id="appearanceRow">
+          <div class="appearance-left">
+            <i data-lucide="sun" id="appearanceIcon"></i>
+            <span>Light appearance</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="themeToggleCheckbox" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Bottom Privacy Card -->
+      <div class="sidebar-footer">
+        <div class="privacy-note">
+          <i data-lucide="shield-check"></i>
+          <div>
+            <div class="pn-title">Private legal assistant</div>
+            <div class="pn-desc">Answers are grounded in statutory legal knowledge.</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="main-workspace">
+      <!-- Top Navigation Header -->
+      <header class="workspace-header">
+        <div class="header-left">
+          <button class="mobile-menu-btn" id="mobileMenuBtn" title="Toggle Sidebar">
+            <i data-lucide="menu"></i>
+          </button>
+          <div class="header-title-block">
+            <h2>LEGAL AI</h2>
+            <span>Sovereign legal & corporate tax assistant</span>
+          </div>
+        </div>
+
+        <!-- Middle Tabs Navigation -->
+        <div class="header-tabs">
+          <button class="nav-tab-btn active" id="tabQnaBtn" data-target="tabQna">
+            <i data-lucide="message-square"></i>
+            <span>Legal Q&A Research</span>
+          </button>
+          <button class="nav-tab-btn" id="tabTaxBtn" data-target="tabTax">
+            <i data-lucide="calculator"></i>
+            <span>Corporate Tax Studio</span>
+          </button>
+        </div>
+
+        <!-- Right Header Status Pill -->
+        <div class="header-right">
+          <div class="online-pill">
+            <span class="online-pill-dot"></span>
+            <span>Online</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- ====================================================================
+           TAB 1: LEGAL AI RESEARCH (Exact Visual Match to User's Image)
+           ==================================================================== -->
+      <section class="tab-pane active" id="tabQna">
+        <div class="chat-scroll-area" id="chatScrollArea">
+          <!-- 2x2 Hero Prompt Cards Grid (Shown when empty or on new chat) -->
+          <div class="hero-container" id="heroContainer">
+            <div class="hero-prompt-grid" id="heroPromptGrid">
+              <!-- Injected via JS dynamically based on active language -->
+            </div>
+          </div>
+
+          <!-- Live Chat Stream -->
+          <div class="chat-stream" id="chatStream"></div>
+        </div>
+
+        <!-- Sticky Bottom Chat Input Bar -->
+        <div class="chat-input-wrapper">
+          <!-- Notice Image Preview Pill -->
+          <div class="attachment-preview-pill" id="attachmentPreviewPill" style="display: none;">
+            <img id="attachedThumbImg" src="" alt="Notice Attachment" />
+            <div class="att-info">
+              <span class="att-name" id="attachedFileNameTxt">document_notice.png</span>
+              <span class="att-status">Attached for Vision OCR inspection</span>
+            </div>
+            <button type="button" class="btn-remove-att" id="removeAttBtn" title="Remove attachment">✕</button>
+          </div>
+
+          <!-- Active Speech Recording Bar -->
+          <div class="speech-recording-banner" id="speechRecordingBanner" style="display: none;">
+            <div class="mic-pulsing-icon">🎙️</div>
+            <span>Listening to speech... Speak clearly in your selected language</span>
+          </div>
+
+          <!-- Input Bar Container (Pill Style from Reference Image) -->
+          <form class="query-pill-form" id="queryPillForm">
+            <!-- Paperclip Upload Button -->
+            <label for="noticeFileInput" class="btn-pill-icon btn-paperclip" title="Upload FBR Notice or SECP Letter Image">
+              <i data-lucide="paperclip"></i>
+            </label>
+            <input type="file" id="noticeFileInput" accept="image/png, image/jpeg, image/webp" style="display: none;" />
+
+            <!-- Text Input -->
+            <input
+              type="text"
+              id="userQueryInput"
+              autocomplete="off"
+              placeholder="Ask anything about Pakistani corporate or tax law..."
+            />
+
+            <!-- Voice Mic Input -->
+            <button type="button" class="btn-pill-icon btn-mic" id="voiceMicBtn" title="Speak into microphone (Speech-to-Text)">
+              <i data-lucide="mic" id="voiceMicIcon"></i>
+            </button>
+
+            <!-- Stop Generation Button (Shown while generating) -->
+            <button type="button" class="btn-pill-icon btn-stop" id="stopGenerationBtn" style="display: none;" title="Stop generation">
+              <i data-lucide="square"></i>
+            </button>
+
+            <!-- Send Upward Arrow Button (Exact style from reference image) -->
+            <button type="submit" class="btn-pill-send" id="sendQueryBtn" title="Send Question">
+              <i data-lucide="arrow-up"></i>
+            </button>
+          </form>
+
+          <!-- Bottom Footer Details (Exact style from reference image) -->
+          <div class="input-bottom-meta">
+            <span class="meta-left">Enter to send &nbsp;•&nbsp; Shift + Enter for new line</span>
+            <span class="meta-right">
+              <i data-lucide="shield"></i> Grounded by statutory legal knowledge
+            </span>
+          </div>
+          <div class="input-disclaimer-note">
+            Legal AI can make mistakes. Verify important information with official statutory sources.
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           TAB 2: CORPORATE & TAX ASSESSMENT STUDIO (Form + Math + PDF)
+           ==================================================================== -->
+      <section class="tab-pane" id="tabTax">
+        <div class="tax-studio-scroll-area">
+          <div class="tax-studio-hero">
+            <h2>🧮 Corporate & Tax Assessment Studio</h2>
+            <p>Form-driven deterministic computation under Pakistan Income Tax Ordinance 2001 & Finance Act (including Section 4C Super Tax) with boardroom-ready PDF export.</p>
+          </div>
+
+          <!-- Parameter Form Card -->
+          <div class="tax-form-card">
+            <form id="taxStudioForm">
+              <div class="form-grid-3">
+                <div class="field-item">
+                  <label>Taxpayer / Enterprise Name</label>
+                  <input type="text" id="taxpayerName" value="Alpha Holdings (Pvt) Ltd" required />
+                </div>
+                <div class="field-item">
+                  <label>Entity Classification</label>
+                  <select id="entityCategory">
+                    <option value="Private Limited Company" selected>Private Limited Company (29% Flat)</option>
+                    <option value="Salaried Individual">Salaried Individual (First Schedule Div I)</option>
+                    <option value="Business Individual / AOP">Business Individual / AOP (Up to 45%)</option>
+                  </select>
+                </div>
+                <div class="field-item">
+                  <label>Applicable Tax Year</label>
+                  <select id="taxYear">
+                    <option value="2024-2025" selected>Tax Year 2024-2025</option>
+                    <option value="2025-2026">Tax Year 2025-2026</option>
+                    <option value="2023-2024">Tax Year 2023-2024</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-grid-3" style="margin-top: 14px;">
+                <div class="field-item">
+                  <label>Gross Annual Revenue / Income (PKR)</label>
+                  <input type="number" id="grossRevenue" min="0" value="250000000" step="500000" required />
+                  <span class="field-hint" id="grossRevenueHint">PKR 250,000,000 (25 Crore)</span>
+                </div>
+                <div class="field-item">
+                  <label>Allowable Deductions / Expenses (PKR)</label>
+                  <input type="number" id="deductionsInput" min="0" value="0" step="250000" />
+                  <span class="field-hint">Admissible expenses under Part IV</span>
+                </div>
+                <div class="field-item">
+                  <label>Advance Tax / WHT Deducted (PKR)</label>
+                  <input type="number" id="advanceTaxInput" min="0" value="15000000" step="250000" />
+                  <span class="field-hint">Tax collected/paid under Sec 147/153</span>
+                </div>
+              </div>
+
+              <div class="form-btn-row">
+                <button type="submit" class="btn-studio-compute" id="btnComputeTax">
+                  <i data-lucide="zap"></i>
+                  <span>Compute Statutory Tax & Generate Advisory</span>
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Results Section (Visible after calculation) -->
+          <div class="tax-results-box" id="taxResultsBox" style="display: none;">
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="m-label">Gross Taxable Income</div>
+                <div class="m-value" id="kpiGross">PKR 0</div>
+                <div class="m-sub" id="kpiCategory">Corporate Basis</div>
+              </div>
+              <div class="metric-card">
+                <div class="m-label">Base Statutory Tax</div>
+                <div class="m-value amber-glow" id="kpiBase">PKR 0</div>
+                <div class="m-sub" id="kpiSlab">Applicable Bracket</div>
+              </div>
+              <div class="metric-card">
+                <div class="m-label">Super Tax (Section 4C)</div>
+                <div class="m-value red-glow" id="kpiSuper">PKR 0</div>
+                <div class="m-sub" id="kpiSuperRate">High Earners Tier (> 150M)</div>
+              </div>
+              <div class="metric-card">
+                <div class="m-label">Advance Tax / WHT Credit</div>
+                <div class="m-value green-glow" id="kpiAdvance">- PKR 0</div>
+                <div class="m-sub">Deducted at Source</div>
+              </div>
+              <div class="metric-card">
+                <div class="m-label">Net Statutory Tax Due</div>
+                <div class="m-value blue-glow" id="kpiNet">PKR 0</div>
+                <div class="m-sub">Total Payable to FBR</div>
+              </div>
+              <div class="metric-card">
+                <div class="m-label">Effective Tax Rate</div>
+                <div class="m-value purple-glow" id="kpiEffective">0.0%</div>
+                <div class="m-sub">Net Rate on Income</div>
+              </div>
+            </div>
+
+            <!-- AI Advisory Memo -->
+            <div class="advisory-memo-card">
+              <div class="memo-header">
+                <div class="memo-title">
+                  <i data-lucide="shield-check"></i>
+                  <span>Strategic Legal Advisory & Compliance Assessment</span>
+                </div>
+                <span class="memo-tag">Gemini Statutory Counsel</span>
+              </div>
+              <div class="memo-content" id="memoContent"></div>
+            </div>
+
+            <!-- PDF Download Bar -->
+            <div class="pdf-export-strip">
+              <div class="pdf-strip-info">
+                <i data-lucide="file-check-2"></i>
+                <span>Formal Boardroom & FBR-Compliant Tax Assessment Memorandum Generated</span>
+              </div>
+              <button type="button" class="btn-download-official-pdf" id="btnDownloadOfficialPdf">
+                <i data-lucide="download"></i>
+                <span>Download Official PDF Report</span>
+              </button>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
