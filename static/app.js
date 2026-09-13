@@ -454,14 +454,16 @@ async function executeAssistantQuery(formData) {
                 } else if (currentEvent === "token") {
                   if (parsed.text) {
                     accumulatedText += parsed.text;
-                    loadingState.style.display = "none";
-                    answerText.style.display = "block";
-                    try {
-                      answerText.innerHTML = marked.parse(accumulatedText);
-                    } catch (mErr) {
-                      answerText.innerText = accumulatedText;
+                    if (accumulatedText.trim().length > 0) {
+                      loadingState.style.display = "none";
+                      answerText.style.display = "block";
+                      try {
+                        answerText.innerHTML = marked.parse(accumulatedText);
+                      } catch (mErr) {
+                        answerText.innerText = accumulatedText;
+                      }
+                      scrollToBottom();
                     }
-                    scrollToBottom();
                   }
                 } else if (currentEvent === "done") {
                   loadingState.style.display = "none";
