@@ -34,11 +34,11 @@ def parse_currency_amount(text: str) -> Optional[float]:
 
     # Pattern for expressions like: 25 crore, 2.5 billion, 150 million, 50 lakh, 48k
     word_multipliers = [
-        (r"(\d+(?:\.\d+)?)\s*(?:billion|arab|b)\b", 1_000_000_000),
-        (r"(\d+(?:\.\d+)?)\s*(?:crore|cr)\b", 10_000_000),
-        (r"(\d+(?:\.\d+)?)\s*(?:million|m)\b", 1_000_000),
-        (r"(\d+(?:\.\d+)?)\s*(?:lakh|lac|l)\b", 100_000),
-        (r"(\d+(?:\.\d+)?)\s*(?:thousand|k)\b", 1_000),
+        (r"(\d+(?:\.\d+)?)\s*(?:billions?|arab|b)\b", 1_000_000_000),
+        (r"(\d+(?:\.\d+)?)\s*(?:crores?|cr)\b", 10_000_000),
+        (r"(\d+(?:\.\d+)?)\s*(?:millions?|m)\b", 1_000_000),
+        (r"(\d+(?:\.\d+)?)\s*(?:lakhs?|lacs?|l)\b", 100_000),
+        (r"(\d+(?:\.\d+)?)\s*(?:thousands?|k)\b", 1_000),
     ]
 
     for pattern, mult in word_multipliers:

@@ -784,8 +784,8 @@ input:checked + .toggle-slider:before {
 .loading-state {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 4px;
+  gap: 12px;
+  padding: 10px 14px;
 }
 
 .pulsing-wave {
@@ -795,8 +795,8 @@ input:checked + .toggle-slider:before {
 }
 
 .wave-dot {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   background-color: var(--accent-blue, #2563eb);
   border-radius: 50%;
   display: inline-block;
@@ -816,6 +816,18 @@ input:checked + .toggle-slider:before {
     transform: scale(1.2);
     opacity: 1;
   }
+}
+
+.loading-hint-text {
+  font-size: 0.82rem;
+  color: var(--text-sub, #64748b);
+  font-weight: 500;
+  animation: pulseHintOpacity 1.8s infinite ease-in-out;
+}
+
+@keyframes pulseHintOpacity {
+  0%, 100% { opacity: 0.65; }
+  50% { opacity: 1; }
 }
 
 /* Verified Citations Box - 100% Legible & High Contrast */
@@ -934,30 +946,6 @@ input:checked + .toggle-slider:before {
 .btn-msg-action.playing {
   color: var(--accent-blue);
   font-weight: 600;
-}
-
-/* Pulsing Wave Loading Animation */
-.pulsing-wave {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 0;
-}
-
-.wave-dot {
-  width: 7px;
-  height: 7px;
-  background-color: var(--accent-blue);
-  border-radius: 50%;
-  animation: wavePulse 1.2s infinite ease-in-out;
-}
-
-.wave-dot:nth-child(2) { animation-delay: 0.2s; }
-.wave-dot:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes wavePulse {
-  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-  40% { transform: scale(1.15); opacity: 1; }
 }
 
 /* ==========================================================================

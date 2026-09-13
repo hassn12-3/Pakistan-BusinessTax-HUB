@@ -344,6 +344,7 @@ async function executeAssistantQuery(formData) {
             <span class="wave-dot"></span>
             <span class="wave-dot"></span>
           </div>
+          <span class="loading-hint-text">Researching statutory provisions & generating response...</span>
         </div>
         <div class="answer-text" style="display: none;"></div>
         <div class="sources-box-slot" style="display: none;"></div>
