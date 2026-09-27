@@ -144,37 +144,6 @@ GEMINI_API_KEY=your_google_gemini_api_key_here
 GEMINI_MODEL=gemini-3.5-flash
 PORT=7860
 ```
-
-### 3. Launch the Application
-```bash
-python -m uvicorn main:app --host 0.0.0.0 --port 7860 --reload
-```
-Open **`http://localhost:7860`** in your browser.
-
----
-
-## 🌐 Deploy to Render.com (100% Free 24/7 Hosting)
-
-You can deploy the complete platform to **Render.com** in under 2 minutes:
-
-1. Log into [dashboard.render.com](https://dashboard.render.com) using your GitHub account.
-2. Click **New +** ➔ **Web Service**.
-3. Select the repository: **`Pakistan-BusinessTax-HUB`**.
-4. Configure the build settings:
-   * **Runtime**: `Python 3`
-   * **Build Command**: `pip install -r requirements.txt`
-   * **Start Command**: `python -m uvicorn main:app --host 0.0.0.0 --port $PORT`
-   * **Plan**: `Free`
-5. Under **Environment Variables**, add these 3 variables:
-   | Key | Value | Description |
-   | :--- | :--- | :--- |
-   | `GOOGLE_API_KEY` | `YOUR_GEMINI_KEY` | Powers grounded synthesis & counsel |
-   | `HUGGINGFACEHUB_API_TOKEN` | `YOUR_HF_TOKEN` | Powers dense vector search (FAISS) |
-   | `GEMINI_MODEL` | `gemini-3.5-flash` | Ultra low-latency legal LLM |
-6. Click **Deploy Web Service**. Render will build and launch your live application with a public HTTPS URL.
-
----
-
 ## 🔮 Future Horizon & Scalability
 
 LegalTax AI’s modular LangGraph architecture is designed to expand across Pakistan's entire legal infrastructure:
